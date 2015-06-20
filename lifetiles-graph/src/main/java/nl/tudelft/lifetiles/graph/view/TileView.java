@@ -1,20 +1,29 @@
 package nl.tudelft.lifetiles.graph.view;
 
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.mockito.cglib.core.CollectionUtils;
+
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
+import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
 import nl.tudelft.lifetiles.annotation.model.GeneAnnotation;
 import nl.tudelft.lifetiles.annotation.model.KnownMutation;
 import nl.tudelft.lifetiles.graph.controller.GraphController;
 import nl.tudelft.lifetiles.graph.model.Graph;
 import nl.tudelft.lifetiles.sequence.Mutation;
+import nl.tudelft.lifetiles.sequence.model.Sequence;
 import nl.tudelft.lifetiles.sequence.model.SequenceSegment;
 
 /**
@@ -79,6 +88,8 @@ public class TileView {
      * The vertical scale to be applied to all vertices.
      */
     private double verticalScale;
+
+    private Set<SequenceSegment> sequenceSet = new HashSet<>();
 
     /**
      * The amount of pixels that the height and width at least must have.
@@ -149,10 +160,11 @@ public class TileView {
 
         verticalScale = screenHeight / lanes.size();
 
-        for (Entry<SequenceSegment, SegmentInfo> entry : segmentInfoMap.entrySet()) {
+        for (Entry<SequenceSegment, SegmentInfo> entry : segmentInfoMap
+                .entrySet()) {
             SegmentInfo container = entry.getValue();
             drawVertex(container.getLocation(), entry.getKey(), container
-                    .getMutations(), container.getAnnotations());
+                    .getMutations(), container.getAnnotations(), Color.RED);
 
         }
 
@@ -211,7 +223,7 @@ public class TileView {
      */
     private void drawVertex(final double index, final SequenceSegment segment,
             final List<KnownMutation> knownMutations,
-            final List<GeneAnnotation> annotations) {
+            final List<GeneAnnotation> annotations, Color givenColor) {
         String text = segment.getContent().toString();
         long start = segment.getUnifiedStart();
         long width = segment.getContent().getLength();
@@ -230,7 +242,56 @@ public class TileView {
         VertexView vertex = new VertexView(text, topleft, width, height,
                 scaling, color);
 
+        segmentInfoMap.get(segment).setVertex(vertex);
+
         vertex.setOnMouseClicked(event -> controller.clicked(segment));
+
+        vertex.setOnMouseEntered(event -> {
+            for (Entry<SequenceSegment, SegmentInfo> v : segmentInfoMap
+                    .entrySet()) {
+
+                // Find all sequences that other vertices have in common
+                Set<Sequence> intersection = new HashSet<Sequence>(v.getKey()
+                        .getSources());
+                intersection.retainAll(segment.getSources());
+                if (intersection.size() > 0) {
+
+                    double gradient = ((double) v.getKey().getSources().size() - (double) intersection
+                            .size())
+                            / (double) intersection.size();
+
+                    Color color2;
+                    if (v.getKey().getContent().isCollapsed()) {
+                        color2 = COLLAPSE_COLOR;
+                    } else {
+                        color2 = sequenceColor(v.getKey().getMutation());
+                    }
+
+                    Stop[] stops = new Stop[] {
+                            new Stop(0, Color.BLACK), new Stop(1, color2)
+                    };
+                    LinearGradient lg1 = new LinearGradient(0, gradient, 0, 0,
+                            true, CycleMethod.NO_CYCLE, stops);
+                    v.getValue().getVertex().setFill(lg1);
+                }
+            }
+
+        });
+
+        vertex.setOnMouseExited(event -> {
+            for (Entry<SequenceSegment, SegmentInfo> v : segmentInfoMap
+                    .entrySet()) {
+
+                Color color2;
+                if (v.getKey().getContent().isCollapsed()) {
+                    color2 = COLLAPSE_COLOR;
+                } else {
+                    color2 = sequenceColor(v.getKey().getMutation());
+                }
+
+                v.getValue().getVertex().setColor(color2);
+            }
+        });
 
         if (vertex.getHeight() > MINIMALSIZE || vertex.getWidth() > MINIMALSIZE) {
             nodes.getChildren().add(vertex);
@@ -250,6 +311,14 @@ public class TileView {
         if (annotations != null) {
             vertex.annotate(annotations.get(0));
         }
+    }
+
+    void changeColor(Set<Sequence> seguences) {
+        Set<SequenceSegment> set = new HashSet<>();
+        for (Sequence seq : seguences) {
+            set.addAll(seq.getSegments());
+        }
+        sequenceSet = set;
     }
 
     /**
@@ -311,6 +380,7 @@ class SegmentInfo {
      * Annotations of this vertex.
      */
     private List<GeneAnnotation> annotations;
+    private VertexView view;
 
     /**
      * Constructs a new segment information class.
@@ -350,6 +420,14 @@ class SegmentInfo {
      */
     public List<GeneAnnotation> getAnnotations() {
         return annotations;
+    }
+
+    public void setVertex(VertexView v) {
+        this.view = v;
+    }
+
+    public VertexView getVertex() {
+        return view;
     }
 
 }

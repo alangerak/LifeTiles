@@ -4,6 +4,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
@@ -79,17 +80,17 @@ public class VertexView extends Group {
      * @param height
      *            the amount of sequences going through this node
      * @param scaling
-     *          point where x is the horizontal scale, y is the vertical scale
+     *            point where x is the horizontal scale, y is the vertical scale
      * @param color
      *            the color of the vertex
      */
     public VertexView(final String string, final Point2D topLeftPoint,
-            final double width, final double height,
-                  final Point2D scaling,
+            final double width, final double height, final Point2D scaling,
             final Color color) {
 
-        clip = new Rectangle(width * HORIZONTALSCALE * scaling.getX()
-                - SPACING, height * scaling.getY() - SPACING);
+        clip = new Rectangle(
+                width * HORIZONTALSCALE * scaling.getX() - SPACING, height
+                        * scaling.getY() - SPACING);
 
         text = new Text(string);
         text.setFont(Font.font("Oxygen Mono", HORIZONTALSCALE));
@@ -163,6 +164,10 @@ public class VertexView extends Group {
         this.rectangle.setFill(color);
     }
 
+    public void setFill(LinearGradient lg2) {
+        this.rectangle.setFill(lg2);
+    }
+
     /**
      * Resize the width of the Vertex.
      *
@@ -201,5 +206,6 @@ public class VertexView extends Group {
         Tooltip tooltip = new Tooltip(geneAnnotation.toString());
         Tooltip.install(this, tooltip);
     }
+
 
 }
