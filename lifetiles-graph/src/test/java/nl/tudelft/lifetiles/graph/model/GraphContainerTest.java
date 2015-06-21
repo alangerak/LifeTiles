@@ -78,53 +78,53 @@ public class GraphContainerTest {
         gr.addEdge(v5, v6);
 
         Settings.set("empty_segments", "true");
-        gc = new GraphContainer(gr, ss1);
-        assertEquals(7, gc.getVisibleSegments(0, 1).size());
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
+        assertEquals(6, gc.getVisibleSegments(0, 1).size());
     }
 
     @Test
     public void noMutationsTest() {
         Settings.set("mutations", "false");
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
         assertNull(v3.getMutation());
     }
 
     @Test
     public void noReferenceTest() {
-        gc = new GraphContainer(gr, null);
+        gc = new GraphContainer(gr, null,new HashSet<>());
         assertNull(v3.getMutation());
     }
 
     @Test
     public void numberOfBucketsTest() {
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
         assertEquals(1, gc.getBucketCache().getBuckets().size());
     }
 
     @Test
     public void allVisibleSegmentsTest() {
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
         assertEquals(4, gc.getVisibleSegments(0, 1).size());
         assertNotNull(v3.getMutation());
     }
 
     @Test
     public void nullAllVisibleSegmentsTest() {
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
         gc.setVisible(null);
         assertEquals(4, gc.getVisibleSegments(0, 1).size());
     }
 
     @Test
     public void subselectionVisibleSegmentsTest() {
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,s2);
         gc.setVisible(s2);
         assertEquals(3, gc.getVisibleSegments(0, 1).size());
     }
 
     @Test
     public void emptySubselectionVisibleSegmentsTest() {
-        gc = new GraphContainer(gr, ss1);
+        gc = new GraphContainer(gr, ss1,new HashSet<>());
         gc.setVisible(new HashSet<>());
         assertEquals(0, gc.getVisibleSegments(0, 1).size());
     }

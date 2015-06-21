@@ -214,7 +214,7 @@ public class GraphController extends AbstractController {
                     assert args.length == 1;
                     assert args[0] instanceof Sequence;
                     reference = (Sequence) args[0];
-                    model = new GraphContainer(graph, reference);
+                    model.setReference(reference);
                     model.setVisible(visibleSequences);
                     diagram = new StackedMutationContainer(model
                             .getBucketCache(), visibleSequences);
@@ -320,36 +320,17 @@ public class GraphController extends AbstractController {
         GraphParser parser = new DefaultGraphParser();
         graph = parser.parseGraph(vertexfile, edgefile, factory);
 
-        collapseGraph(graph, parser.getSequences().size());
         knownMutations = new HashMap<>();
         mappedAnnotations = new HashMap<>();
 
-        model = new GraphContainer(graph, reference);
+        model = new GraphContainer(graph, reference, new HashSet<>(parser
+                .getSequences().values()));
         diagram = new StackedMutationContainer(model.getBucketCache(),
                 visibleSequences);
 
         shout(Message.LOADED, "sequences", parser.getSequences());
         repaintNow = true;
         repaint();
-    }
-
-    /**
-     * Collapses the total segments in the graph.
-     * Total segments contain all sequences in the graph.
-     *
-     * @param graph
-     *            The graph to be collapsed.
-     * @param sequences
-     *            The amount of sequences in the graph.
-     */
-    private void collapseGraph(final Graph<SequenceSegment> graph,
-            final int sequences) {
-        for (SequenceSegment segment : graph.getAllVertices()) {
-            if (segment.getSources().size() == sequences) {
-                segment.setContent(new SegmentStringCollapsed(segment
-                        .getContent()));
-            }
-        }
     }
 
     /**
@@ -447,36 +428,13 @@ public class GraphController extends AbstractController {
         }
 
         int[] buckets = new int[] {
-                getStartBucketPosition(leftHalf),
-                Math.min(model.getBucketCache().getNumberBuckets(),
-                        getEndBucketPosition(rightHalf) + 2)
+                model.getBucketCache().getStartBucketPosition(leftHalf),
+                Math.min(model.getBucketCache().getNumberBuckets(), model
+                        .getBucketCache().getEndBucketPosition(rightHalf) + 2)
         };
 
         return buckets;
 
-    }
-
-    /**
-     * Return the start position in the bucket.
-     *
-     * @param position
-     *            Position in the scrollPane.
-     * @return position in the bucket.
-     */
-    private int getStartBucketPosition(final double position) {
-        return Math.max(0, model.getBucketCache().getBucketPosition(position));
-    }
-
-    /**
-     * Return the end position in the bucket.
-     *
-     * @param position
-     *            Position in the scrollPane.
-     * @return position in the bucket.
-     */
-    private int getEndBucketPosition(final double position) {
-        return Math.min(model.getBucketCache().getNumberBuckets(), model
-                .getBucketCache().getBucketPosition(position));
     }
 
     /**

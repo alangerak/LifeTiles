@@ -6,8 +6,10 @@ import static org.junit.Assert.assertThat;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashSet;
 import java.util.logging.Level;
 
+import javafx.embed.swing.JFXPanel;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Paint;
@@ -49,8 +51,11 @@ public class MiniMapControllerTest {
         Graph<SequenceSegment> graph = parser.parseGraph(vertexfile, edgefile,
                 factory);
         GraphContainer model = new GraphContainer(graph, new DefaultSequence(
-                "reference"));
+                "reference"),new HashSet<>(parser
+                        .getSequences().values()));
 
+        JFXPanel panel = new JFXPanel();
+        panel.isVisible();
         scrollPane = new ScrollPane();
         controller = new MiniMapController(scrollPane, model);
     }

@@ -56,8 +56,9 @@ public class BucketCache {
     public BucketCache(final int numberBuckets,
             final Graph<SequenceSegment> graph) {
         // Number of buckets is ceiled to a power of 2. Needed for diagram view.
-        this.numberBuckets = (int) Math.round(Math.pow(2,
-                Math.ceil(Math.log(numberBuckets) / Math.log(2))));
+        this.numberBuckets = (int) Math.round(Math.pow(2, Math.ceil(Math
+                .log(numberBuckets)
+                / Math.log(2))));
         this.graph = graph;
         maxUnifiedEnd = getMaxUnifiedEnd();
         bucketWidth = maxUnifiedEnd / this.numberBuckets;
@@ -159,7 +160,8 @@ public class BucketCache {
     }
 
     /**
-     * Returns the position in the bucketCache given a location on the scrollbar.
+     * Returns the position in the bucketCache given a location on the
+     * scrollbar.
      *
      * @param position
      *            Percentage position in the GraphController
@@ -178,8 +180,8 @@ public class BucketCache {
      * @return position in the bucketCache.
      */
     public int bucketStartPosition(final double position) {
-        return (int) Math.min(numberBuckets,
-                Math.max(0, position / bucketWidth));
+        return (int) Math.min(numberBuckets, Math
+                .max(0, position / bucketWidth));
     }
 
     /**
@@ -191,7 +193,29 @@ public class BucketCache {
      * @return position in the bucketCache.
      */
     public int bucketEndPosition(final double position) {
-        return (int) Math.min(numberBuckets,
-                Math.ceil(Math.max(0, position / bucketWidth)));
+        return (int) Math.min(numberBuckets, Math.ceil(Math.max(0, position
+                / bucketWidth)));
+    }
+
+    /**
+     * Return the start position in the bucket.
+     *
+     * @param position
+     *            Position in the scrollPane.
+     * @return position in the bucket.
+     */
+    public int getStartBucketPosition(final double position) {
+        return Math.max(0, getBucketPosition(position));
+    }
+
+    /**
+     * Return the end position in the bucket.
+     *
+     * @param position
+     *            Position in the scrollPane.
+     * @return position in the bucket.
+     */
+    public int getEndBucketPosition(final double position) {
+        return Math.min(getNumberBuckets(), getBucketPosition(position));
     }
 }

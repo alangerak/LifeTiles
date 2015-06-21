@@ -10,6 +10,7 @@ import nl.tudelft.lifetiles.graph.traverser.EmptySegmentTraverser;
 import nl.tudelft.lifetiles.graph.traverser.MutationIndicationTraverser;
 import nl.tudelft.lifetiles.graph.traverser.ReferencePositionTraverser;
 import nl.tudelft.lifetiles.graph.traverser.UnifiedPositionTraverser;
+import nl.tudelft.lifetiles.sequence.model.SegmentStringCollapsed;
 import nl.tudelft.lifetiles.sequence.model.Sequence;
 import nl.tudelft.lifetiles.sequence.model.SequenceSegment;
 
@@ -38,7 +39,7 @@ public class GraphContainer {
     /**
      * The Current graph that this model is holding in bucket cache form.
      */
-    private final BucketCache segmentBuckets;
+    private BucketCache segmentBuckets;
 
     /**
      * The set of currently visible sequencesegments.
@@ -70,21 +71,26 @@ public class GraphContainer {
      *            Reference currently active in the graph controller.
      */
     public GraphContainer(final Graph<SequenceSegment> graph,
-            final Sequence reference) {
+            final Sequence reference, final Set<Sequence> visibleSequences) {
         this.graph = graph;
         for (SequenceSegment segment : this.graph.getAllVertices()) {
             segment.setReferenceStart(1);
             segment.setReferenceEnd(Long.MAX_VALUE);
             segment.setMutation(null);
         }
+
+        visibles = graph.getAllVertices();
+        this.visibleSequences = visibleSequences;
+
+        collapseGraph();
         alignGraph();
         if (reference != null) {
             findMutations(reference);
         }
         segmentBuckets = new BucketCache(Math.max(1, graph.getAllVertices()
-                .size() / VERTICES_BUCKET), this.graph);
+                .size()
+                / VERTICES_BUCKET), this.graph);
 
-        visibles = graph.getAllVertices();
     }
 
     /**
@@ -186,6 +192,37 @@ public class GraphContainer {
      */
     public BucketCache getBucketCache() {
         return segmentBuckets;
+    }
+
+    /**
+     * Collapses the total segments in the graph.
+     * Total segments contain all sequences in the graph.
+     */
+    private void collapseGraph() {
+        for (SequenceSegment segment : graph.getAllVertices()) {
+            if (segment.getSources().size() == visibleSequences.size()) {
+                segment.setContent(new SegmentStringCollapsed(segment
+                        .getContent()));
+            }
+        }
+    }
+
+    public void setReference(Sequence reference) {
+        for (SequenceSegment segment : this.graph.getAllVertices()) {
+            segment.setReferenceStart(1);
+            segment.setReferenceEnd(Long.MAX_VALUE);
+            segment.setMutation(null);
+        }
+
+        collapseGraph();
+        alignGraph();
+        if (reference != null) {
+            findMutations(reference);
+        }
+        segmentBuckets = new BucketCache(Math.max(1, graph.getAllVertices()
+                .size()
+                / VERTICES_BUCKET), this.graph);
+
     }
 
 }
