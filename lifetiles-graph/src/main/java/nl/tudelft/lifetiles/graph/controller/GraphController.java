@@ -13,7 +13,6 @@ import java.util.Set;
 import javafx.fxml.FXML;
 import javafx.scene.Group;
 import javafx.scene.SnapshotParameters;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.shape.Rectangle;
@@ -73,7 +72,7 @@ public class GraphController extends AbstractController {
      * The scrollPane element.
      */
     @FXML
-    private ScrollPane scrollPane;
+    private ZoomScrollPane scrollPane;
 
     /**
      * The model of the graph.
@@ -99,15 +98,11 @@ public class GraphController extends AbstractController {
      * graph model.
      */
     private Graph<SequenceSegment> graph;
+
     /**
      * the highest unified coordinate in the graph.
      */
     private long maxUnifiedEnd;
-
-    /**
-     * Current end position of a bucket.
-     */
-    private int currEndPosition = -1;
 
     /**
      * Current start position of a bucket.
@@ -115,33 +110,14 @@ public class GraphController extends AbstractController {
     private int currStartPosition = -1;
 
     /**
+     * Current end position of a bucket.
+     */
+    private int currEndPosition = -1;
+
+    /**
      * boolean to indicate if the controller must repaint the current position.
      */
     private boolean repaintNow;
-
-    /**
-     * The initial value for zoomlevel.
-     */
-    private static final int DEFAULTZOOMLEVEL = 45;
-
-    /**
-     * The current zoom level.
-     */
-    private int zoomLevel = DEFAULTZOOMLEVEL;
-
-    /**
-     * The current zoom level, used to only redraw if the zoomlevel changes.
-     */
-    private int currentZoomLevel;
-
-    /**
-     * Offset for initial scale.
-     */
-    private static final double SCALE_OFFSET = 5;
-    /**
-     * The current scale to resize the graph.
-     */
-    private double scale = Math.pow(ZOOM_OUT_FACTOR, zoomLevel - SCALE_OFFSET);
 
     /**
      * The currently inserted known mutations.
@@ -152,11 +128,6 @@ public class GraphController extends AbstractController {
      * The currently inserted annotations.
      */
     private Map<SequenceSegment, List<GeneAnnotation>> mappedAnnotations;
-
-    /**
-     * The factor that each zoom in step that updates the current scale.
-     */
-    private static final double ZOOM_IN_FACTOR = 1.3125;
 
     /**
      * Visible sequences in the graph.
@@ -180,56 +151,13 @@ public class GraphController extends AbstractController {
     private NotificationFactory notifyFactory;
 
     /**
-     * The factor that each zoom out step that updates the current scale.
-     */
-    private static final double ZOOM_OUT_FACTOR = 1 / ZOOM_IN_FACTOR;
-
-    /**
-     * Maximal zoomed in level.
-     */
-    private static final int MAX_ZOOM = 50;
-
-    private Zoombar toolbar;
-
-    /**
      * {@inheritDoc}
      */
     @Override
     public void initialize(final URL location, final ResourceBundle resources) {
         initListeners();
-        initZoomToolBar();
-
         repaintNow = false;
-        scrollPane = new ScrollPane();
-
-        scrollPane.setOnScroll(event -> {
-            event.consume();
-            if (event.getDeltaY() > 0) {
-                toolbar.incrementZoom();
-            } else {
-                toolbar.decrementZoom();
-            }
-        });
-
-    }
-
-    /**
-     * Initialize the zoom toolbar.
-     */
-    private void initZoomToolBar() {
-        toolbar = new Zoombar(zoomLevel, MAX_ZOOM);
-
-        wrapper.setRight(toolbar.getToolBar());
-
-        toolbar.getZoomlevel().addListener((observeVal, oldVal, newVal) -> {
-            int diffLevel = oldVal.intValue() - newVal.intValue();
-            zoomLevel = Math.abs(newVal.intValue());
-            if (diffLevel < 0) {
-                zoomGraph(Math.pow(ZOOM_OUT_FACTOR, diffLevel * -1));
-            } else if (diffLevel > 0) {
-                zoomGraph(Math.pow(ZOOM_IN_FACTOR, diffLevel));
-            }
-        });
+        scrollPane = new ZoomScrollPane(this, wrapper);
     }
 
     /**
@@ -268,33 +196,18 @@ public class GraphController extends AbstractController {
             maxUnifiedEnd = getMaxUnifiedEnd(graph);
         });
 
-        listen(Message.LOADED, (sender, subject, args) -> {
-            if (!subject.equals("sequences")) {
-                return;
-            }
-            assert (args[0] instanceof Map<?, ?>);
-
-            Map<String, Sequence> sequences = (Map<String, Sequence>) args[0];
-            if (model != null) {
-                model.setVisible(new HashSet<>(sequences.values()));
-            } else {
-                model = new GraphContainer(graph, null);
-            }
-        });
-
         listen(Message.FILTERED, (controller, subject, args) -> {
             assert args.length == 1;
             assert args[0] instanceof Set<?>;
             // unfortunately java doesn't really let us typecheck generics :(
-            @SuppressWarnings("unchecked")
-            Set<Sequence> newSequences = (Set<Sequence>) args[0];
-            visibleSequences = newSequences;
-            model.setVisible(visibleSequences);
-            diagram = new StackedMutationContainer(model.getBucketCache(),
-                    visibleSequences);
-            repaintNow = true;
-            repaint();
-        });
+                @SuppressWarnings("unchecked")
+                Set<Sequence> newSequences = (Set<Sequence>) args[0];
+                visibleSequences = newSequences;
+                model.setVisible(visibleSequences);
+                diagram = new StackedMutationContainer(model.getBucketCache(),
+                        visibleSequences);
+                repaintNow();
+            });
 
         listen(SequenceController.REFERENCE_SET,
                 (controller, subject, args) -> {
@@ -309,13 +222,15 @@ public class GraphController extends AbstractController {
                     repaint();
                 });
 
-        listen(Message.GOTO, (controller, subject, args) -> {
-            assert args[0] instanceof Long;
-            Long position = (Long) args[0];
-            // calculate position on a 0 to 1 scale
-            double hValue = position.doubleValue() / (double) maxUnifiedEnd;
-            scrollPane.setHvalue(hValue);
-            });
+        listen(Message.GOTO,
+                (controller, subject, args) -> {
+                    assert args[0] instanceof Long;
+                    Long position = (Long) args[0];
+                    // calculate position on a 0 to 1 scale
+                    double hValue = position.doubleValue()
+                            / (double) maxUnifiedEnd;
+                    scrollPane.setHvalue(hValue);
+                });
     }
 
     /**
@@ -388,16 +303,6 @@ public class GraphController extends AbstractController {
     }
 
     /**
-     * @return the currently loaded graph.
-     */
-    public Graph<SequenceSegment> getGraph() {
-        if (graph == null) {
-            throw new IllegalStateException("Graph not loaded.");
-        }
-        return graph;
-    }
-
-    /**
      * Load a new graph from the specified file.
      *
      *
@@ -429,26 +334,6 @@ public class GraphController extends AbstractController {
     }
 
     /**
-     * Inserts a list of known mutations onto the graph from the specified file.
-     *
-     * @param file
-     *            The file to get known mutations from.
-     * @throws IOException
-     *             When an IO error occurs while reading one of the files.
-     */
-    private void insertKnownMutations(final File file) throws IOException {
-        Timer timer = Timer.getAndStart();
-        List<KnownMutation> mutationsList = KnownMutationParser.parseKnownMutations(file);
-        knownMutations = KnownMutationMapper.mapAnnotations(graph,
-                mutationsList, reference);
-
-        timer.stopAndLog("Inserting known mutations");
-        shout(Message.LOADED, "known mutations", mutationsList);
-        repaintNow = true;
-        repaintPosition(scrollPane.hvalueProperty().doubleValue());
-    }
-
-    /**
      * Collapses the total segments in the graph.
      * Total segments contain all sequences in the graph.
      *
@@ -465,6 +350,28 @@ public class GraphController extends AbstractController {
                         .getContent()));
             }
         }
+    }
+
+    /**
+     * Inserts a list of known mutations onto the graph from the specified file.
+     *
+     * @param file
+     *            The file to get known mutations from.
+     * @throws IOException
+     *             When an IO error occurs while reading one of the files.
+     */
+    private void insertKnownMutations(final File file) throws IOException {
+        Timer timer = Timer.getAndStart();
+        List<KnownMutation> mutationsList = KnownMutationParser
+                .parseKnownMutations(file);
+        knownMutations = KnownMutationMapper.mapAnnotations(graph,
+                mutationsList, reference);
+
+        timer.stopAndLog("Inserting known mutations");
+        shout(Message.LOADED, "known mutations", mutationsList);
+        repaintNow = true;
+
+        repaintPosition(scrollPane.hvalueProperty().doubleValue());
     }
 
     /**
@@ -491,13 +398,10 @@ public class GraphController extends AbstractController {
     /**
      * Repaints the view.
      */
-    private void repaint() {
-
+    void repaint() {
         wrapper.snapshot(new SnapshotParameters(), new WritableImage(5, 5));
         if (graph != null) {
-            if (model == null) {
-                model = new GraphContainer(graph, reference);
-            }
+
             if (diagram == null) {
                 diagram = new StackedMutationContainer(model.getBucketCache(),
                         visibleSequences);
@@ -527,6 +431,9 @@ public class GraphController extends AbstractController {
      *         one is the end bucket
      */
     private int[] getStartandEndBucket(final double position) {
+        if (miniMapController == null) {
+            miniMapController = getMiniMapController();
+        }
         double thumbSize = miniMapController.getMiniMap().getVisibleAmount();
 
         double leftHalf = position - thumbSize;
@@ -546,6 +453,30 @@ public class GraphController extends AbstractController {
         };
 
         return buckets;
+
+    }
+
+    /**
+     * Return the start position in the bucket.
+     *
+     * @param position
+     *            Position in the scrollPane.
+     * @return position in the bucket.
+     */
+    private int getStartBucketPosition(final double position) {
+        return Math.max(0, model.getBucketCache().getBucketPosition(position));
+    }
+
+    /**
+     * Return the end position in the bucket.
+     *
+     * @param position
+     *            Position in the scrollPane.
+     * @return position in the bucket.
+     */
+    private int getEndBucketPosition(final double position) {
+        return Math.min(model.getBucketCache().getNumberBuckets(), model
+                .getBucketCache().getBucketPosition(position));
     }
 
     /**
@@ -555,58 +486,70 @@ public class GraphController extends AbstractController {
      *            Position in the scrollPane.
      */
     private void repaintPosition(final double position) {
-        int zoomSwitchLevel = MAX_ZOOM - diagram.getLevel();
-        double scaledVertex = scale * VertexView.HORIZONTALSCALE;
-        if (zoomLevel > zoomSwitchLevel) {
-            if (currentZoomLevel != zoomLevel || repaintNow) {
-                Group diagramDrawing = new Group();
-                double width = maxUnifiedEnd * scaledVertex;
-                int diagramLevel = zoomLevel - zoomSwitchLevel;
-                diagramDrawing.getChildren().addAll(
-                        diagramView.drawDiagram(diagram, diagramLevel, width),
-                            new Rectangle(width, 0));
-                scrollPane.setContent(diagramDrawing);
-                wrapper.setCenter(scrollPane);
-
-                currentZoomLevel = zoomLevel;
-                repaintNow = false;
-            }
+        // int zoomSwitchLevel = scrollPane.MAX_ZOOM - diagram.getLevel();
+        if (scrollPane.getZoomLevel() > scrollPane.SWITCHLEVEL) {
+            drawDiagram(scrollPane.getZoomLevel());
         } else {
-            int[] bucketLocations = getStartandEndBucket(position);
-
-            int startBucket = bucketLocations[0];
-            int endBucket = bucketLocations[1];
-
-            if (currEndPosition != endBucket
-                    && currStartPosition != startBucket || repaintNow) {
-                Group graphDrawing = new Group();
-                graphDrawing.setManaged(false);
-                graphDrawing.getChildren().addAll(
-                        drawGraph(startBucket, endBucket),
-                        new Rectangle(maxUnifiedEnd * scaledVertex, 0));
-
-                scrollPane.setContent(graphDrawing);
-                wrapper.setCenter(scrollPane);
-
-                currEndPosition = endBucket;
-                currStartPosition = startBucket;
-
-                repaintNow = false;
-            }
+            drawGraph(position);
         }
     }
 
     /**
-     * Zoom on the current graph given a zoomFactor.
+     * Draw a Diagram with the given zoom level.
      *
-     * @param zoomFactor
-     *            factor bigger than 1 makes the graph bigger
-     *            between 0 and 1 makes the graph smaller
+     * @param zoomLevel
+     *            zoom level
      */
-    private void zoomGraph(final double zoomFactor) {
-        scale *= zoomFactor;
-        repaintNow = true;
-        repaint();
+    private void drawDiagram(final int zoomLevel) {
+
+        double width = maxUnifiedEnd * scrollPane.getScale()
+                * VertexView.HORIZONTALSCALE;
+        int diagramLevel = scrollPane.getZoomLevel() - zoomLevel;
+
+        Group diagramDrawing = new Group();
+        diagramDrawing.getChildren().add(
+                diagramView.drawDiagram(diagram, diagramLevel, width));
+        diagramDrawing.getChildren().add(new Rectangle(width, 0));
+        scrollPane.setContent(diagramDrawing);
+        wrapper.setCenter(scrollPane);
+
+        repaintNow = false;
+    }
+
+    /**
+     * Draw a graph at the given scrollbar position.
+     *
+     * @param position
+     *            position of the scrollbar
+     */
+    private void drawGraph(final double position) {
+        int[] bucketLocations = getStartandEndBucket(position);
+
+        int startBucket = bucketLocations[0];
+        int endBucket = bucketLocations[1];
+
+        if (currEndPosition != endBucket && currStartPosition != startBucket
+                || repaintNow) {
+            Group graphDrawing = new Group();
+            graphDrawing.setManaged(false);
+
+            graphDrawing.getChildren().add(
+                    view.drawGraph(model.getVisibleSegments(startBucket,
+                            endBucket), knownMutations, mappedAnnotations,
+                            scrollPane.getScale()));
+
+            graphDrawing.getChildren().add(
+                    new Rectangle(maxUnifiedEnd * scrollPane.getScale()
+                            * VertexView.HORIZONTALSCALE, 0));
+
+            scrollPane.setContent(graphDrawing);
+            wrapper.setCenter(scrollPane);
+
+            currEndPosition = endBucket;
+            currStartPosition = startBucket;
+
+            repaintNow = false;
+        }
     }
 
     /**
@@ -627,49 +570,6 @@ public class GraphController extends AbstractController {
     }
 
     /**
-     * Return the start position in the bucket.
-     *
-     * @param position
-     *            Position in the scrollPane.
-     * @return position in the bucket.
-     */
-    private int getStartBucketPosition(final double position) {
-        return Math.max(0, model.getBucketCache()
-                .getBucketPosition(position));
-    }
-
-    /**
-     * Return the end position in the bucket.
-     *
-     * @param position
-     *            Position in the scrollPane.
-     * @return position in the bucket.
-     */
-    private int getEndBucketPosition(final double position) {
-        return Math.min(model.getBucketCache().getNumberBuckets(), model
-                .getBucketCache().getBucketPosition(position));
-    }
-
-    /**
-     * Creates a drawable object of the graph from the model.
-     *
-     * It will draw from the startBucket all the way to the endBucket.
-     *
-     * @param startBucket
-     *            the first buket
-     * @param endBucket
-     *            the last bucket
-     * @return Group object to be drawn on the screen
-     */
-    public Group drawGraph(final int startBucket, final int endBucket) {
-
-        Group test = view.drawGraph(model.getVisibleSegments(startBucket,
-                endBucket), graph, knownMutations, mappedAnnotations, scale);
-
-        return test;
-    }
-
-    /**
      * Set that this segment is selected and set those sequences visible.
      *
      * @param segment
@@ -678,4 +578,13 @@ public class GraphController extends AbstractController {
     public void clicked(final SequenceSegment segment) {
         shout(Message.FILTERED, "", segment.getSources());
     }
+
+    /**
+     * Repaint the current screen immidiately.
+     */
+    public void repaintNow() {
+        this.repaintNow = true;
+        repaint();
+    }
+
 }

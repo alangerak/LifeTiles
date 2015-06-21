@@ -78,7 +78,7 @@ public class TileViewTest {
     public void drawGraphVerticesDrawGenericTest() {
         creategraph();
         buckets = new BucketCache(1, gr);
-        Group result = tileview.drawGraph(buckets.getSegments(0, 1), gr, null,
+        Group result = tileview.drawGraph(buckets.getSegments(0, 1), null,
                 null, 1);
         assertEquals(4, ((Group) result.getChildrenUnmodifiable().get(0))
                 .getChildrenUnmodifiable().size());
@@ -88,7 +88,7 @@ public class TileViewTest {
     public void drawGraphEdgesDrawGenericTest() {
         creategraph();
         buckets = new BucketCache(1, gr);
-        Group result = tileview.drawGraph(buckets.getSegments(0, 0), gr, null,
+        Group result = tileview.drawGraph(buckets.getSegments(0, 0), null,
                 null, 1);
         assertEquals(3, ((Group) result.getChildrenUnmodifiable().get(1))
                 .getChildrenUnmodifiable().size());
@@ -112,7 +112,7 @@ public class TileViewTest {
         graph.addVertex(v1);
 
         BucketCache buckets = new BucketCache(1, graph);
-        Group result = tileview.drawGraph(buckets.getSegments(0, 1), gr, null,
+        Group result = tileview.drawGraph(buckets.getSegments(0, 1), null,
                 null, 1);
         VertexView vView1 = (VertexView) ((Group) result
                 .getChildrenUnmodifiable().get(0)).getChildrenUnmodifiable()
@@ -161,7 +161,7 @@ public class TileViewTest {
         panel.contains(0, 0);
         Platform.runLater(() -> {
 
-            Group result = tileview.drawGraph(buckets.getSegments(0, 1), graph,
+            Group result = tileview.drawGraph(buckets.getSegments(0, 1),
                     annotations, null, 1);
 
             bookmark = (Circle) ((Group) result.getChildrenUnmodifiable()
@@ -182,13 +182,13 @@ public class TileViewTest {
     public void clickVertexTest() {
         creategraph();
         buckets = new BucketCache(1, gr);
-        Group result = tileview.drawGraph(buckets.getSegments(0, 1), gr, null,
+        Group result = tileview.drawGraph(buckets.getSegments(0, 1), null,
                 null, 1);
         Event.fireEvent(((Group) result.getChildrenUnmodifiable().get(0))
                 .getChildrenUnmodifiable().get(0), new MouseEvent(
-                        MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, MouseButton.PRIMARY, 1,
-                        true, true, true, true, true, true, true, true, true, true,
-                        null));
+                MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, MouseButton.PRIMARY, 1,
+                true, true, true, true, true, true, true, true, true, true,
+                null));
         Mockito.verify(controller).clicked(Mockito.any());
     }
 

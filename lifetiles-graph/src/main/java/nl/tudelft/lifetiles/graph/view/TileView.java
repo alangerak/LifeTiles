@@ -108,8 +108,6 @@ public class TileView {
      *
      * @param segments
      *            Graph to be drawn
-     * @param graph
-     *            Graph to base the edges on
      * @param knownMutations
      *            Map from segment to known mutations.
      * @param mappedAnnotations
@@ -119,7 +117,6 @@ public class TileView {
      * @return the elements that must be displayed on the screen
      */
     public Group drawGraph(final Set<SequenceSegment> segments,
-            final Graph<SequenceSegment> graph,
             final Map<SequenceSegment, List<KnownMutation>> knownMutations,
             final Map<SequenceSegment, List<GeneAnnotation>> mappedAnnotations,
             final double horizontalScale) {
