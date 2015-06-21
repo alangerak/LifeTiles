@@ -84,15 +84,7 @@ public class GraphController extends AbstractController {
      */
     private TileView view;
 
-    /**
-     * The model of the diagram.
-     */
-    private StackedMutationContainer diagram;
-
-    /**
-     * The view of the diagram.
-     */
-    private DiagramView diagramView;
+    private DiagramController diagramController;
 
     /**
      * graph model.
@@ -156,6 +148,7 @@ public class GraphController extends AbstractController {
     @Override
     public void initialize(final URL location, final ResourceBundle resources) {
         initListeners();
+        diagramController = new DiagramController(new DiagramView());
         repaintNow = false;
         scrollPane = new ZoomScrollPane(this, wrapper);
     }
@@ -204,8 +197,9 @@ public class GraphController extends AbstractController {
                 Set<Sequence> newSequences = (Set<Sequence>) args[0];
                 visibleSequences = newSequences;
                 model.setVisible(visibleSequences);
-                diagram = new StackedMutationContainer(model.getBucketCache(),
-                        visibleSequences);
+                diagramController.setDiagram(new StackedMutationContainer(model
+                        .getBucketCache(), visibleSequences));
+
                 repaintNow();
             });
 
@@ -216,8 +210,9 @@ public class GraphController extends AbstractController {
                     reference = (Sequence) args[0];
                     model.setReference(reference);
                     model.setVisible(visibleSequences);
-                    diagram = new StackedMutationContainer(model
-                            .getBucketCache(), visibleSequences);
+                    diagramController.setDiagram(new StackedMutationContainer(
+                            model.getBucketCache(), visibleSequences));
+
                     repaintNow = true;
                     repaint();
                 });
@@ -325,8 +320,9 @@ public class GraphController extends AbstractController {
 
         model = new GraphContainer(graph, reference, new HashSet<>(parser
                 .getSequences().values()));
-        diagram = new StackedMutationContainer(model.getBucketCache(),
-                visibleSequences);
+
+        diagramController.setDiagram(new StackedMutationContainer(model
+                .getBucketCache(), visibleSequences));
 
         shout(Message.LOADED, "sequences", parser.getSequences());
         repaintNow = true;
@@ -383,14 +379,13 @@ public class GraphController extends AbstractController {
         wrapper.snapshot(new SnapshotParameters(), new WritableImage(5, 5));
         if (graph != null) {
 
-            if (diagram == null) {
-                diagram = new StackedMutationContainer(model.getBucketCache(),
-                        visibleSequences);
+            if (diagramController.getModel() == null) {
+                diagramController.setDiagram(new StackedMutationContainer(model
+                        .getBucketCache(), visibleSequences));
             }
 
             view = new TileView(this,
                     wrapper.getBoundsInParent().getHeight() * 0.9);
-            diagramView = new DiagramView();
 
             scrollPane.hvalueProperty().addListener(
                     (observable, oldValue, newValue) -> {
@@ -466,7 +461,7 @@ public class GraphController extends AbstractController {
 
         Group diagramDrawing = new Group();
         diagramDrawing.getChildren().add(
-                diagramView.drawDiagram(diagram, diagramLevel, width));
+                diagramController.drawDiagram(diagramLevel, width));
         diagramDrawing.getChildren().add(new Rectangle(width, 0));
         scrollPane.setContent(diagramDrawing);
         wrapper.setCenter(scrollPane);
